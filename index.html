@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Симулятор Ядерного Реактора</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0d1b24 0%, #152532 100%);
+            color: #ecf0f1;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #3a9bd5, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 10px rgba(58, 155, 213, 0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #95a5a6;
+        }
+
+        .simulator-container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+            height: 70vh;
+        }
+
+        @media (max-width: 968px) {
+            .simulator-container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+        }
+
+        #reactor3d {
+            width: 100%;
+            height: 100%;
+            background: #1c2e3d;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+
+        .control-panel {
+            background: linear-gradient(145deg, #1c2e3d, #152532);
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            overflow-y: auto;
+            max-height: 70vh;
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .control-group:last-child {
+            border-bottom: none;
+        }
+
+        .control-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #3a9bd5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .slider-container {
+            margin-bottom: 15px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: #95a5a6;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 10px;
+            -webkit-appearance: none;
+            background: linear-gradient(to right, #1a2b3c, #2c5f7a);
+            border-radius: 5px;
+            outline: none;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: linear-gradient(to bottom, #3a9bd5, #2c5f7a);
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        button:after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(255,255,255,0.1), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        button:hover:after {
+            opacity: 1;
+        }
+
+        .btn-primary {
+            background: linear-gradient(to bottom, #3a9bd5, #2c5f7a);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(to bottom, #27ae60, #219653);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(to bottom, #f39c12, #e67e22);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(to bottom, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .status-panel {
+            background: linear-gradient(145deg, #1c2e3d, #152532);
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .status-item {
+            background: linear-gradient(145deg, #1e3243, #172635);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05),
+                        0 3px 10px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .status-label {
+            font-size: 0.9rem;
+            color: #95a5a6;
+            margin-bottom: 10px;
+        }
+
+        .status-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .status-normal {
+            color: #27ae60;
+            text-shadow: 0 0 10px rgba(39, 174, 96, 0.5);
+        }
+
+        .status-warning {
+            color: #f39c12;
+            text-shadow: 0 0 10px rgba(243, 156, 18, 0.5);
+        }
+
+        .status-danger {
+            color: #e74c3c;
+            text-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+            border-left: 5px solid;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .alert-danger {
+            background: linear-gradient(to right, rgba(231, 76, 60, 0.15), transparent);
+            border-left-color: #e74c3c;
+            color: #e74c3c;
+        }
+
+        .alert-warning {
+            background: linear-gradient(to right, rgba(243, 156, 18, 0.15), transparent);
+            border-left-color: #f39c12;
+            color: #f39c12;
+        }
+
+        .alert-success {
+            background: linear-gradient(to right, rgba(46, 204, 113, 0.15), transparent);
+            border-left-color: #27ae60;
+            color: #27ae60;
+        }
+
+        .alert-blink {
+            animation: alertBlink 0.5s infinite;
+        }
+
+        @keyframes alertBlink {
+            0%, 100% { 
+                opacity: 1;
+                background: linear-gradient(to right, rgba(231, 76, 60, 0.6), transparent);
+                box-shadow: 0 0 20px rgba(231, 76, 60, 0.8);
+            }
+            50% { 
+                opacity: 0.3;
+                background: linear-gradient(to right, rgba(231, 76, 60, 0.3), transparent);
+                box-shadow: 0 0 10px rgba(231, 76, 60, 0.4);
+            }
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #95a5a6;
+            font-size: 0.9rem;
+        }
+
+        .view-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+        }
+
+        .view-btn {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .view-btn:hover {
+            background: rgba(0, 0, 0, 0.9);
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1.5rem;
+            z-index: 1000;
+        }
+
+        .sound-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+        }
+
+        .sound-btn {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .screen-shake {
+            animation: shake 0.8s linear;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-15px); }
+            20%, 40%, 60%, 80% { transform: translateX(15px); }
+        }
+
+        .meltdown-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255, 50, 0, 0.8) 0%, rgba(100, 0, 0, 0.95) 70%);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+            font-size: 3rem;
+            text-align: center;
+        }
+
+        .meltdown-overlay.active {
+            display: flex;
+            animation: meltdownFadeIn 1s forwards;
+        }
+
+        @keyframes meltdownFadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>3D Симулятор Ядерного Реактора</h1>
+            <p class="subtitle">Интерактивная 3D визуализация работы ядерного реактора ВВЭР-1000</p>
+        </header>
+        
+        <div class="simulator-container">
+            <div id="reactor3d">
+                <div class="view-controls">
+                    <button class="view-btn" id="topView">Вид сверху</button>
+                    <button class="view-btn" id="frontView">Вид спереди</button>
+                    <button class="view-btn" id="sideView">Вид сбоку</button>
+                    <button class="view-btn" id="orbitView">Свободный обзор</button>
+                </div>
+                <div class="sound-controls">
+                    <button class="sound-btn" id="muteBtn">🔇 Выключить звук</button>
+                </div>
+                <div class="loading" id="loading">Загрузка 3D модели...</div>
+            </div>
+            
+            <div class="control-panel">
+                <div class="control-group">
+                    <div class="control-title">
+                        <span>Управление реактором</span>
+                        <span id="reactorStatus">ОСТАНОВЛЕН</span>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn-success" id="startBtn">ЗАПУСК</button>
+                        <button class="btn-warning" id="stopBtn">ОСТАНОВКА</button>
+                        <button class="btn-danger" id="scramBtn">АВАРИЙНАЯ ОСТАНОВКА</button>
+                        <button class="btn-primary" id="meltdownBtn">ТЕСТ ВЗРЫВА</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <div class="control-title">
+                        <span>Управляющие стержни</span>
+                        <span id="rodPosition">100%</span>
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>ПОГРУЖЕНО</span>
+                            <span>ИЗВЛЕЧЕНО</span>
+                        </div>
+                        <input type="range" id="rodSlider" min="0" max="100" value="100">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <div class="control-title">
+                        <span>Подача теплоносителя</span>
+                        <span id="coolantFlowRate">50%</span>
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>МИН</span>
+                            <span>МАКС</span>
+                        </div>
+                        <input type="range" id="coolantSlider" min="0" max="100" value="50">
+                    </div>
+                </div>
+                
+                <div class="alert alert-danger" id="alertDanger">
+                    <strong>ОПАСНОСТЬ!</strong> Критическое состояние реактора. Немедленно предпримите меры!
+                </div>
+                
+                <div class="alert alert-warning" id="alertWarning">
+                    <strong>ВНИМАНИЕ!</strong> Показатели приближаются к критическим значениям.
+                </div>
+                
+                <div class="alert alert-success" id="alertSuccess">
+                    <strong>СТАБИЛЬНО!</strong> Реактор работает в нормальном режиме.
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-panel">
+            <div class="status-grid">
+                <div class="status-item">
+                    <div class="status-label">МОЩНОСТЬ РЕАКТОРА</div>
+                    <div class="status-value" id="powerOutput">0 МВт</div>
+                    <div class="status-label">Норма: 800-1200 МВт</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">ТЕМПЕРАТУРА АКТИВНОЙ ЗОНЫ</div>
+                    <div class="status-value" id="coreTemp">20 °C</div>
+                    <div class="status-label">Норма: 250-300 °C</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">ДАВЛЕНИЕ В КОНТУРЕ</div>
+                    <div class="status-value" id="pressure">0.1 МПа</div>
+                    <div class="status-label">Норма: 15-16 МПа</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">УРОВЕНЬ РАДИАЦИИ</div>
+                    <div class="status-value" id="radiation">0 мЗв/ч</div>
+                    <div class="status-label">Норма: до 0.5 мЗв/ч</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="meltdown-overlay" id="meltdownOverlay">
+        <div>КАТАСТРОФИЧЕСКИЙ РАЗРЫВ РЕАКТОРА</div>
+        <div style="font-size: 1.5rem; margin-top: 20px;">Активированы системы аварийной защиты</div>
+        <button class="btn-primary" id="resetBtn" style="margin-top: 30px;">ПЕРЕЗАПУСТИТЬ СИМУЛЯТОР</button>
+    </div>
+    
+    <footer>
+        <p>3D Симулятор ядерного реактора ВВЭР-1000 | Учебный проект | Не является реальной системой управления</p>
+    </footer>
+
+    <script>
+        // Элементы DOM
+        const reactor3d = document.getElementById('reactor3d');
+        const loading = document.getElementById('loading');
+        const rodSlider = document.getElementById('rodSlider');
+        const coolantSlider = document.getElementById('coolantSlider');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const scramBtn = document.getElementById('scramBtn');
+        const meltdownBtn = document.getElementById('meltdownBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const topViewBtn = document.getElementById('topView');
+        const frontViewBtn = document.getElementById('frontView');
+        const sideViewBtn = document.getElementById('sideView');
+        const orbitViewBtn = document.getElementById('orbitView');
+        const muteBtn = document.getElementById('muteBtn');
+        const meltdownOverlay = document.getElementById('meltdownOverlay');
+        
+        // Элементы отображения статуса
+        const reactorStatus = document.getElementById('reactorStatus');
+        const rodPosition = document.getElementById('rodPosition');
+        const coolantFlowRate = document.getElementById('coolantFlowRate');
+        const powerOutput = document.getElementById('powerOutput');
+        const coreTemp = document.getElementById('coreTemp');
+        const pressure = document.getElementById('pressure');
+        const radiation = document.getElementById('radiation');
+        
+        // Элементы предупреждений
+        const alertDanger = document.getElementById('alertDanger');
+        const alertWarning = document.getElementById('alertWarning');
+        const alertSuccess = document.getElementById('alertSuccess');
+        
+        // Состояние реактора
+        let reactorState = {
+            isRunning: false,
+            power: 0,
+            temperature: 20,
+            pressure: 0.1,
+            radiation: 0,
+            rodPosition: 100,
+            coolantFlow: 50,
+            criticalState: false,
+            meltdown: false,
+            soundEnabled: true
+        };
+        
+        // Three.js переменные
+        let scene, camera, renderer, controls;
+        let reactorCore, controlRods = [], fuelAssemblies = [];
+        let coreGlow, coolantParticles = [], neutronParticles = [];
+        let explosionEffect, shockwave, smokeParticles = [];
+        let reactorDebris = [];
+        
+        // Таймер симуляции
+        let simulationInterval;
+        
+        // Создание звуков с использованием Web Audio API
+        let audioContext;
+        try {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+            console.log("Web Audio API не поддерживается");
+        }
+        
+        // Звуковые объекты
+        let alarmSound, humSound, explosionSound;
+        let activeSounds = new Set();
+        
+        function createBeepSound(frequency, duration) {
+            if (!audioContext || !reactorState.soundEnabled) return Promise.resolve();
+            
+            return new Promise((resolve) => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration);
+                
+                const soundId = Symbol();
+                activeSounds.add(soundId);
+                
+                oscillator.onended = () => {
+                    activeSounds.delete(soundId);
+                    resolve();
+                };
+            });
+        }
+        
+        function createAlarmSound() {
+            if (!audioContext || !reactorState.soundEnabled) return null;
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.type = 'sawtooth';
+            gainNode.gain.value = 0.1;
+            
+            // Пульсирующая тревога
+            const startTime = audioContext.currentTime;
+            oscillator.frequency.setValueAtTime(800, startTime);
+            oscillator.frequency.setValueAtTime(600, startTime + 0.5);
+            
+            const soundId = Symbol();
+            activeSounds.add(soundId);
+            
+            oscillator.onended = () => {
+                activeSounds.delete(soundId);
+            };
+            
+            return { oscillator, gainNode, soundId };
+        }
+        
+        function createHumSound() {
+            if (!audioContext || !reactorState.soundEnabled) return null;
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            const filter = audioContext.createBiquadFilter();
+            
+            oscillator.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.value = 60;
+            
+            filter.type = 'lowpass';
+            filter.frequency.value = 200;
+            
+            gainNode.gain.value = 0.05;
+            
+            const soundId = Symbol();
+            activeSounds.add(soundId);
+            
+            oscillator.onended = () => {
+                activeSounds.delete(soundId);
+            };
+            
+            return { oscillator, gainNode, filter, soundId };
+        }
+        
+        function createExplosionSound() {
+            if (!audioContext || !reactorState.soundEnabled) return null;
+            
+            const bufferSize = audioContext.sampleRate * 3;
+            const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+            const output = buffer.getChannelData(0);
+            
+            // Генерация шума взрыва
+            for (let i = 0; i < bufferSize; i++) {
+                output[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+            }
+            
+            const whiteNoise = audioContext.createBufferSource();
+            whiteNoise.buffer = buffer;
+            
+            const filter = audioContext.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 100;
+            
+            const gainNode = audioContext.createGain();
+            gainNode.gain.setValueAtTime(1.5, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 3);
+            
+            whiteNoise.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            const soundId = Symbol();
+            activeSounds.add(soundId);
+            
+            whiteNoise.onended = () => {
+                activeSounds.delete(soundId);
+            };
+            
+            return { whiteNoise, gainNode, soundId };
+        }
+        
+        // Инициализация Three.js сцены
+        function initThreeJS() {
+            // Создание сцены
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1c2e3d);
+            scene.fog = new THREE.Fog(0x1c2e3d, 50, 200);
+            
+            // Создание камеры
+            camera = new THREE.PerspectiveCamera(60, reactor3d.clientWidth / reactor3d.clientHeight, 0.1, 1000);
+            camera.position.set(0, 30, 50);
+            
+            // Создание рендерера
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(reactor3d.clientWidth, reactor3d.clientHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            reactor3d.appendChild(renderer.domElement);
+            
+            // Добавление контролов для вращения камеры
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 20;
+            controls.maxDistance = 100;
+            
+            // Добавление освещения
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 50, 50);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            // Создание реактора
+            createReactor();
+            
+            // Создание эффектов взрыва
+            createExplosionEffects();
+            
+            // Скрытие загрузки
+            setTimeout(() => {
+                loading.style.display = 'none';
+            }, 1000);
+            
+            // Запуск анимации
+            animate();
+        }
+        
+        // Создание 3D модели реактора
+        function createReactor() {
+            // Основание реактора
+            const baseGeometry = new THREE.CylinderGeometry(15, 15, 3, 32);
+            const baseMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x333333,
+                transparent: true,
+                opacity: 0.8
+            });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.position.y = 1.5;
+            base.castShadow = true;
+            base.receiveShadow = true;
+            scene.add(base);
+            
+            // Корпус реактора - полупрозрачный
+            const reactorVesselGeometry = new THREE.CylinderGeometry(12, 12, 25, 32);
+            const reactorVesselMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x4a5f7a,
+                transparent: true,
+                opacity: 0.3,
+                shininess: 30
+            });
+            const reactorVessel = new THREE.Mesh(reactorVesselGeometry, reactorVesselMaterial);
+            reactorVessel.position.y = 15;
+            reactorVessel.castShadow = true;
+            reactorVessel.receiveShadow = true;
+            scene.add(reactorVessel);
+            
+            // Активная зона реактора - полупрозрачная
+            const coreGeometry = new THREE.CylinderGeometry(8, 8, 10, 32);
+            const coreMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x00ff00,
+                emissive: 0x004400,
+                transparent: true,
+                opacity: 0.6
+            });
+            reactorCore = new THREE.Mesh(coreGeometry, coreMaterial);
+            reactorCore.position.y = 10;
+            reactorCore.castShadow = true;
+            scene.add(reactorCore);
+            
+            // Свечение активной зоны
+            const glowGeometry = new THREE.CylinderGeometry(8.5, 8.5, 10.5, 32);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ff00,
+                transparent: true,
+                opacity: 0.2,
+                side: THREE.BackSide
+            });
+            coreGlow = new THREE.Mesh(glowGeometry, glowMaterial);
+            coreGlow.position.y = 10;
+            scene.add(coreGlow);
+            
+            // Управляющие стержни - полупрозрачные
+            const rodCount = 8;
+            for (let i = 0; i < rodCount; i++) {
+                const angle = (i / rodCount) * Math.PI * 2;
+                const radius = 6;
+                
+                const rodGeometry = new THREE.CylinderGeometry(0.3, 0.3, 18, 16);
+                const rodMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x333333,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const rod = new THREE.Mesh(rodGeometry, rodMaterial);
+                
+                rod.position.x = Math.cos(angle) * radius;
+                rod.position.z = Math.sin(angle) * radius;
+                rod.position.y = 19;
+                rod.castShadow = true;
+                
+                scene.add(rod);
+                controlRods.push(rod);
+            }
+            
+            // Топливные сборки - полупрозрачные
+            const assemblyCount = 30;
+            for (let i = 0; i < assemblyCount; i++) {
+                const angle = (i / assemblyCount) * Math.PI * 2;
+                const radius = 4 + Math.random() * 3;
+                
+                const assemblyGeometry = new THREE.BoxGeometry(0.5, 8, 0.5);
+                const assemblyMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xff8c00,
+                    emissive: 0x442200,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const assembly = new THREE.Mesh(assemblyGeometry, assemblyMaterial);
+                
+                assembly.position.x = Math.cos(angle) * radius;
+                assembly.position.z = Math.sin(angle) * radius;
+                assembly.position.y = 6;
+                assembly.castShadow = true;
+                
+                scene.add(assembly);
+                fuelAssemblies.push(assembly);
+            }
+            
+            // Система охлаждения - трубы (полупрозрачные)
+            const pipeGeometry = new THREE.CylinderGeometry(0.8, 0.8, 30, 16);
+            const pipeMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x5a6878,
+                transparent: true,
+                opacity: 0.6
+            });
+            
+            for (let i = 0; i < 4; i++) {
+                const angle = (i / 4) * Math.PI * 2;
+                const radius = 15;
+                
+                const pipe = new THREE.Mesh(pipeGeometry, pipeMaterial);
+                pipe.position.x = Math.cos(angle) * radius;
+                pipe.position.z = Math.sin(angle) * radius;
+                pipe.position.y = 15;
+                pipe.rotation.z = Math.PI / 2;
+                pipe.castShadow = true;
+                
+                scene.add(pipe);
+            }
+            
+            // Частицы теплоносителя
+            createCoolantParticles();
+            
+            // Нейтроны - внутренние процессы
+            createNeutronParticles();
+        }
+        
+        // Создание частиц теплоносителя
+        function createCoolantParticles() {
+            const particleCount = 150;
+            const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const particleMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x1e90ff,
+                transparent: true,
+                opacity: 0.7
+            });
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                
+                // Случайное положение внутри реактора
+                const radius = 7 + Math.random() * 1;
+                const angle = Math.random() * Math.PI * 2;
+                const height = Math.random() * 8;
+                
+                particle.position.x = Math.cos(angle) * radius;
+                particle.position.z = Math.sin(angle) * radius;
+                particle.position.y = height + 6;
+                
+                particle.userData = {
+                    speed: 0.02 + Math.random() * 0.03,
+                    angle: angle,
+                    radius: radius,
+                    height: height,
+                    type: 'coolant'
+                };
+                
+                scene.add(particle);
+                coolantParticles.push(particle);
+            }
+        }
+        
+        // Создание нейтронов - внутренние процессы
+        function createNeutronParticles() {
+            const neutronCount = 80;
+            const neutronGeometry = new THREE.SphereGeometry(0.05, 6, 6);
+            const neutronMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            for (let i = 0; i < neutronCount; i++) {
+                const neutron = new THREE.Mesh(neutronGeometry, neutronMaterial);
+                
+                // Случайное положение внутри активной зоны
+                const radius = Math.random() * 6;
+                const angle = Math.random() * Math.PI * 2;
+                const height = Math.random() * 8;
+                
+                neutron.position.x = Math.cos(angle) * radius;
+                neutron.position.z = Math.sin(angle) * radius;
+                neutron.position.y = height + 6;
+                
+                neutron.userData = {
+                    speed: 0.1 + Math.random() * 0.2,
+                    direction: new THREE.Vector3(
+                        Math.random() - 0.5,
+                        Math.random() - 0.5, 
+                        Math.random() - 0.5
+                    ).normalize(),
+                    lifetime: 0,
+                    maxLifetime: 2 + Math.random() * 3,
+                    type: 'neutron'
+                };
+                
+                scene.add(neutron);
+                neutronParticles.push(neutron);
+            }
+        }
+        
+        // Создание эффектов взрыва
+        function createExplosionEffects() {
+            // Эффект взрыва
+            const explosionGeometry = new THREE.SphereGeometry(1, 16, 16);
+            const explosionMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff4500,
+                transparent: true,
+                opacity: 0
+            });
+            explosionEffect = new THREE.Mesh(explosionGeometry, explosionMaterial);
+            explosionEffect.position.y = 10;
+            scene.add(explosionEffect);
+            
+            // Ударная волна
+            const shockwaveGeometry = new THREE.RingGeometry(1, 1.1, 32);
+            const shockwaveMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0,
+                side: THREE.DoubleSide
+            });
+            shockwave = new THREE.Mesh(shockwaveGeometry, shockwaveMaterial);
+            shockwave.rotation.x = Math.PI / 2;
+            shockwave.position.y = 10;
+            scene.add(shockwave);
+        }
+        
+        // Создание дыма
+        function createSmoke() {
+            const smokeCount = 100;
+            const smokeGeometry = new THREE.SphereGeometry(0.5, 8, 8);
+            const smokeMaterial = new THREE.MeshBasicMaterial({
+                color: 0x444444,
+                transparent: true,
+                opacity: 0.6
+            });
+            
+            for (let i = 0; i < smokeCount; i++) {
+                const smoke = new THREE.Mesh(smokeGeometry, smokeMaterial);
+                
+                // Случайное положение вокруг эпицентра
+                smoke.position.set(
+                    (Math.random() - 0.5) * 25,
+                    5 + Math.random() * 5,
+                    (Math.random() - 0.5) * 25
+                );
+                
+                smoke.userData = {
+                    velocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.2,
+                        0.5 + Math.random() * 0.5,
+                        (Math.random() - 0.5) * 0.2
+                    ),
+                    scale: 1 + Math.random() * 2,
+                    rotationSpeed: (Math.random() - 0.5) * 0.02,
+                    opacityChange: 0.98 + Math.random() * 0.02
+                };
+                
+                smoke.scale.set(
+                    smoke.userData.scale,
+                    smoke.userData.scale,
+                    smoke.userData.scale
+                );
+                
+                scene.add(smoke);
+                smokeParticles.push(smoke);
+            }
+        }
+        
+        // Анимация дыма
+        function animateSmoke() {
+            smokeParticles.forEach(smoke => {
+                // Движение вверх
+                smoke.position.add(smoke.userData.velocity);
+                
+                // Медленное вращение
+                smoke.rotation.y += smoke.userData.rotationSpeed;
+                
+                // Постепенное исчезновение
+                smoke.material.opacity *= smoke.userData.opacityChange;
+                
+                // Увеличение размера
+                smoke.scale.multiplyScalar(1.005);
+                
+                // Регенерация частиц дыма
+                if (smoke.material.opacity < 0.1 || smoke.position.y > 50) {
+                    smoke.position.set(
+                        (Math.random() - 0.5) * 25,
+                        5,
+                        (Math.random() - 0.5) * 25
+                    );
+                    smoke.material.opacity = 0.6;
+                    smoke.scale.set(
+                        smoke.userData.scale,
+                        smoke.userData.scale,
+                        smoke.userData.scale
+                    );
+                }
+            });
+        }
+        
+        // Создание обломков разрушенного реактора
+        function createReactorDebris() {
+            // Удаляем оригинальные элементы реактора
+            scene.remove(reactorCore);
+            scene.remove(coreGlow);
+            
+            controlRods.forEach(rod => scene.remove(rod));
+            controlRods = [];
+            
+            fuelAssemblies.forEach(assembly => scene.remove(assembly));
+            fuelAssemblies = [];
+            
+            coolantParticles.forEach(particle => scene.remove(particle));
+            coolantParticles = [];
+            
+            neutronParticles.forEach(neutron => scene.remove(neutron));
+            neutronParticles = [];
+            
+            // Создаем обломки
+            const debrisCount = 200;
+            for (let i = 0; i < debrisCount; i++) {
+                const size = 0.3 + Math.random() * 1.5;
+                const geometry = new THREE.BoxGeometry(size, size, size);
+                const material = new THREE.MeshPhongMaterial({
+                    color: Math.random() > 0.5 ? 0x4a5f7a : 0x333333,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                
+                const debris = new THREE.Mesh(geometry, material);
+                
+                // Случайное положение вокруг центра взрыва
+                debris.position.set(
+                    (Math.random() - 0.5) * 30,
+                    10 + (Math.random() - 0.5) * 20,
+                    (Math.random() - 0.5) * 30
+                );
+                
+                // Случайное вращение
+                debris.rotation.set(
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI
+                );
+                
+                // Случайная скорость и направление (сильный разлет)
+                debris.userData = {
+                    velocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 8,
+                        Math.random() * 6 + 2,
+                        (Math.random() - 0.5) * 8
+                    ),
+                    rotationSpeed: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.3,
+                        (Math.random() - 0.5) * 0.3,
+                        (Math.random() - 0.5) * 0.3
+                    ),
+                    gravity: -0.2
+                };
+                
+                scene.add(debris);
+                reactorDebris.push(debris);
+            }
+            
+            // Создаем дым
+            createSmoke();
+        }
+        
+        // Анимация обломков
+        function animateReactorDebris() {
+            reactorDebris.forEach(debris => {
+                // Применяем гравитацию
+                debris.userData.velocity.y += debris.userData.gravity;
+                
+                // Обновляем позицию
+                debris.position.add(debris.userData.velocity);
+                
+                // Обновляем вращение
+                debris.rotation.x += debris.userData.rotationSpeed.x;
+                debris.rotation.y += debris.userData.rotationSpeed.y;
+                debris.rotation.z += debris.userData.rotationSpeed.z;
+                
+                // Столкновение с землей
+                if (debris.position.y < 0) {
+                    debris.position.y = 0;
+                    debris.userData.velocity.y *= -0.3; // Отскок
+                    debris.userData.velocity.x *= 0.7;
+                    debris.userData.velocity.z *= 0.7;
+                    
+                    // Замедление вращения при ударе о землю
+                    debris.userData.rotationSpeed.multiplyScalar(0.8);
+                }
+            });
+        }
+        
+        // Анимация взрыва
+        function triggerExplosion() {
+            if (reactorState.meltdown) return;
+            
+            reactorState.meltdown = true;
+            
+            // Остановить все звуки перед взрывом
+            stopAllSounds();
+            
+            // Воспроизвести звук взрыва
+            playExplosionSound();
+            
+            // Мгновенное разрушение реактора
+            createReactorDebris();
+            
+            // Анимация взрыва
+            let scale = 1;
+            let opacity = 1;
+            const explosionAnimation = setInterval(() => {
+                scale += 3;
+                opacity -= 0.08;
+                
+                explosionEffect.scale.set(scale, scale, scale);
+                explosionEffect.material.opacity = opacity;
+                
+                shockwave.scale.set(scale * 2, scale * 2, scale * 2);
+                shockwave.material.opacity = opacity * 0.7;
+                
+                if (opacity <= 0) {
+                    clearInterval(explosionAnimation);
+                    explosionEffect.material.opacity = 0;
+                    shockwave.material.opacity = 0;
+                }
+            }, 30);
+            
+            // Сильная тряска экрана
+            document.body.classList.add('screen-shake');
+            setTimeout(() => {
+                document.body.classList.remove('screen-shake');
+            }, 800);
+            
+            // Показать экран катастрофы
+            setTimeout(() => {
+                meltdownOverlay.classList.add('active');
+            }, 1000);
+            
+            // Отключить реактор
+            reactorState.isRunning = false;
+            clearInterval(simulationInterval);
+            
+            // Показать моргающее уведомление
+            showBlinkingAlert(alertDanger, "КАТАСТРОФИЧЕСКИЙ РАЗРЫВ РЕАКТОРА! Активированы системы аварийной защиты.");
+        }
+        
+        // Показать моргающее уведомление
+        function showBlinkingAlert(alertElement, message) {
+            hideAllAlerts();
+            alertElement.textContent = message;
+            alertElement.style.display = "block";
+            alertElement.classList.add("alert-blink");
+        }
+        
+        // Анимация частиц теплоносителя
+        function animateCoolantParticles() {
+            const flowRate = reactorState.coolantFlow / 100;
+            
+            coolantParticles.forEach(particle => {
+                const data = particle.userData;
+                
+                // Движение по кругу с подъемом
+                data.angle += data.speed * flowRate;
+                data.height += (Math.sin(data.angle * 2) * 0.05) * flowRate;
+                
+                // Ограничение высоты
+                if (data.height > 8) data.height = 0;
+                if (data.height < 0) data.height = 8;
+                
+                particle.position.x = Math.cos(data.angle) * data.radius;
+                particle.position.z = Math.sin(data.angle) * data.radius;
+                particle.position.y = data.height + 6;
+                
+                // Изменение прозрачности в зависимости от потока
+                particle.material.opacity = 0.3 + 0.5 * flowRate;
+            });
+        }
+        
+        // Анимация нейтронов
+        function animateNeutronParticles() {
+            const intensity = Math.min(1, reactorState.power / 1000);
+            
+            neutronParticles.forEach(neutron => {
+                const data = neutron.userData;
+                
+                if (reactorState.isRunning && intensity > 0.1 && !reactorState.meltdown) {
+                    // Движение нейтрона
+                    neutron.position.add(data.direction.clone().multiplyScalar(data.speed * intensity));
+                    
+                    // Отражение от границ активной зоны
+                    const distanceFromCenter = Math.sqrt(
+                        neutron.position.x * neutron.position.x + 
+                        neutron.position.z * neutron.position.z
+                    );
+                    
+                    if (distanceFromCenter > 6 || 
+                        neutron.position.y < 6 || 
+                        neutron.position.y > 14) {
+                        // Случайное изменение направления при столкновении
+                        data.direction.set(
+                            Math.random() - 0.5,
+                            Math.random() - 0.5,
+                            Math.random() - 0.5
+                        ).normalize();
+                    }
+                    
+                    // Обновление времени жизни
+                    data.lifetime += 0.016; // ~60 FPS
+                    
+                    // Регенерация нейтрона по истечении времени жизни
+                    if (data.lifetime > data.maxLifetime) {
+                        data.lifetime = 0;
+                        neutron.position.set(
+                            (Math.random() - 0.5) * 6,
+                            6 + Math.random() * 8,
+                            (Math.random() - 0.5) * 6
+                        );
+                    }
+                    
+                    // Изменение яркости в зависимости от мощности
+                    neutron.material.opacity = 0.3 + 0.7 * intensity;
+                } else {
+                    // Замедление нейтронов при остановке
+                    neutron.material.opacity *= 0.95;
+                }
+            });
+        }
+        
+        // Анимация сцены
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Обновление контролов камеры
+            controls.update();
+            
+            // Анимация частиц теплоносителя (только если нет разрушения)
+            if (!reactorState.meltdown) {
+                animateCoolantParticles();
+                animateNeutronParticles();
+            }
+            
+            // Анимация обломков и дыма (только при разрушении)
+            if (reactorState.meltdown) {
+                animateReactorDebris();
+                animateSmoke();
+            }
+            
+            // Анимация активной зоны
+            if (reactorState.isRunning && !reactorState.meltdown) {
+                const intensity = Math.min(1, reactorState.power / 1000);
+                
+                // Пульсация активной зоны
+                reactorCore.material.emissive.setHex(0x004400 + Math.floor(0x00bb00 * intensity));
+                coreGlow.material.opacity = 0.1 + 0.4 * intensity;
+                
+                // Вращение топливных сборок
+                fuelAssemblies.forEach(assembly => {
+                    assembly.rotation.y += 0.005 * intensity;
+                });
+                
+                // Мерцание активной зоны
+                reactorCore.material.opacity = 0.5 + 0.3 * Math.sin(Date.now() * 0.003) * intensity;
+            } else if (!reactorState.meltdown) {
+                // Постепенное затухание при остановке
+                reactorCore.material.opacity *= 0.99;
+                coreGlow.material.opacity *= 0.99;
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Обработка изменения размера окна
+        function onWindowResize() {
+            camera.aspect = reactor3d.clientWidth / reactor3d.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(reactor3d.clientWidth, reactor3d.clientHeight);
+        }
+        
+        window.addEventListener('resize', onWindowResize);
+        
+        // Функции управления звуком
+        function toggleSound() {
+            reactorState.soundEnabled = !reactorState.soundEnabled;
+            muteBtn.textContent = reactorState.soundEnabled ? "🔇 Выключить звук" : "🔊 Включить звук";
+            
+            if (!reactorState.soundEnabled) {
+                stopAllSounds();
+            }
+        }
+        
+        function playStartupSound() {
+            if (!reactorState.soundEnabled) return;
+            createBeepSound(400, 0.1)
+                .then(() => createBeepSound(600, 0.1))
+                .then(() => createBeepSound(800, 0.2));
+        }
+        
+        function playShutdownSound() {
+            if (!reactorState.soundEnabled) return;
+            createBeepSound(800, 0.1)
+                .then(() => createBeepSound(600, 0.1))
+                .then(() => createBeepSound(400, 0.2));
+        }
+        
+        function playButtonSound() {
+            if (!reactorState.soundEnabled) return;
+            createBeepSound(300, 0.05);
+        }
+        
+        function startAlarmSound() {
+            if (!reactorState.soundEnabled) return;
+            stopAlarmSound(); // Остановить предыдущую тревогу
+            alarmSound = createAlarmSound();
+            if (alarmSound) {
+                alarmSound.oscillator.start();
+            }
+        }
+        
+        function stopAlarmSound() {
+            if (alarmSound && alarmSound.oscillator) {
+                try {
+                    alarmSound.oscillator.stop();
+                    activeSounds.delete(alarmSound.soundId);
+                } catch (e) {
+                    // Игнорировать ошибки остановки
+                }
+                alarmSound = null;
+            }
+        }
+        
+        function startHumSound() {
+            if (!reactorState.soundEnabled) return;
+            stopHumSound(); // Остановить предыдущий гул
+            humSound = createHumSound();
+            if (humSound) {
+                humSound.oscillator.start();
+            }
+        }
+        
+        function stopHumSound() {
+            if (humSound && humSound.oscillator) {
+                try {
+                    humSound.oscillator.stop();
+                    activeSounds.delete(humSound.soundId);
+                } catch (e) {
+                    // Игнорировать ошибки остановки
+                }
+                humSound = null;
+            }
+        }
+        
+        function playExplosionSound() {
+            if (!reactorState.soundEnabled) return;
+            explosionSound = createExplosionSound();
+            if (explosionSound) {
+                explosionSound.whiteNoise.start();
+            }
+        }
+        
+        function stopAllSounds() {
+            stopAlarmSound();
+            stopHumSound();
+            
+            // Остановить все активные звуки
+            if (audioContext) {
+                audioContext.suspend().then(() => {
+                    setTimeout(() => {
+                        if (audioContext) {
+                            audioContext.resume();
+                        }
+                    }, 100);
+                });
+            }
+            
+            activeSounds.clear();
+        }
+        
+        // Функции управления реактором
+        function startReactor() {
+            if (reactorState.isRunning || reactorState.meltdown) return;
+            
+            playButtonSound();
+            reactorState.isRunning = true;
+            reactorStatus.textContent = "РАБОТАЕТ";
+            reactorStatus.className = "status-normal";
+            
+            // Запуск симуляции
+            simulationInterval = setInterval(updateReactor, 1000);
+            
+            // Воспроизвести звук запуска
+            playStartupSound();
+            setTimeout(() => startHumSound(), 1500);
+            
+            // Показать предупреждение о запуске
+            showAlert(alertSuccess, "Реактор запущен. Мощность нарастает.");
+            
+            // Обновить интерфейс
+            updateUI();
+        }
+        
+        function stopReactor() {
+            if (!reactorState.isRunning || reactorState.meltdown) return;
+            
+            playButtonSound();
+            reactorState.isRunning = false;
+            reactorStatus.textContent = "ОСТАНАВЛИВАЕТСЯ";
+            reactorStatus.className = "status-warning";
+            
+            // Воспроизвести звук остановки
+            playShutdownSound();
+            stopHumSound();
+            stopAlarmSound();
+            
+            // Показать предупреждение об остановке
+            showAlert(alertWarning, "Реактор останавливается. Мощность снижается.");
+            
+            // Обновить интерфейс
+            updateUI();
+        }
+        
+        function scramReactor() {
+            if (reactorState.meltdown) return;
+            
+            playButtonSound();
+            reactorState.isRunning = false;
+            reactorState.rodPosition = 100;
+            rodSlider.value = 100;
+            reactorStatus.textContent = "АВАРИЙНАЯ ОСТАНОВКА";
+            reactorStatus.className = "status-danger";
+            
+            // Воспроизвести звук тревоги
+            startAlarmSound();
+            stopHumSound();
+            
+            // Показать предупреждение об аварийной остановке
+            showAlert(alertDanger, "АВАРИЙНАЯ ОСТАНОВКА! Стержни полностью погружены.");
+            
+            // Обновить интерфейс
+            updateUI();
+        }
+        
+        function resetReactor() {
+            playButtonSound();
+            
+            reactorState.isRunning = false;
+            reactorState.power = 0;
+            reactorState.temperature = 20;
+            reactorState.pressure = 0.1;
+            reactorState.radiation = 0;
+            reactorState.rodPosition = 100;
+            reactorState.coolantFlow = 50;
+            reactorState.criticalState = false;
+            reactorState.meltdown = false;
+            
+            rodSlider.value = 100;
+            coolantSlider.value = 50;
+            
+            reactorStatus.textContent = "ОСТАНОВЛЕН";
+            reactorStatus.className = "";
+            
+            // Остановить все звуки
+            stopAllSounds();
+            
+            // Скрыть экран катастрофы
+            meltdownOverlay.classList.remove('active');
+            
+            // Скрыть все предупреждения
+            hideAllAlerts();
+            
+            // Перезагрузить сцену
+            resetScene();
+            
+            // Обновить интерфейс
+            updateUI();
+        }
+        
+        function resetScene() {
+            // Очистить сцену
+            while(scene.children.length > 0) { 
+                scene.remove(scene.children[0]); 
+            }
+            
+            // Очистить массивы
+            controlRods = [];
+            fuelAssemblies = [];
+            coolantParticles = [];
+            neutronParticles = [];
+            reactorDebris = [];
+            smokeParticles = [];
+            
+            // Пересоздать освещение
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 50, 50);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            // Пересоздать реактор
+            createReactor();
+            createExplosionEffects();
+        }
+        
+        function updateReactor() {
+            if (reactorState.meltdown) return;
+            
+            if (!reactorState.isRunning) {
+                // Постепенное снижение показателей при остановке
+                reactorState.power = Math.max(0, reactorState.power - 50);
+                reactorState.temperature = Math.max(20, reactorState.temperature - 10);
+                reactorState.pressure = Math.max(0.1, reactorState.pressure - 0.5);
+                reactorState.radiation = Math.max(0, reactorState.radiation - 0.1);
+                
+                if (reactorState.power === 0) {
+                    reactorStatus.textContent = "ОСТАНОВЛЕН";
+                    reactorStatus.className = "";
+                    clearInterval(simulationInterval);
+                    stopAlarmSound();
+                }
+            } else {
+                // Расчет новых значений при работе
+                const rodEffect = (100 - reactorState.rodPosition) / 100;
+                const coolantEffect = reactorState.coolantFlow / 100;
+                
+                // Мощность зависит от положения стержней
+                reactorState.power = Math.min(1500, reactorState.power + rodEffect * 100);
+                
+                // Температура зависит от мощности и охлаждения
+                reactorState.temperature = Math.min(500, reactorState.temperature + (reactorState.power / 100) - coolantEffect * 20);
+                
+                // Давление зависит от температуры
+                reactorState.pressure = Math.min(25, reactorState.pressure + (reactorState.temperature / 100) - coolantEffect * 5);
+                
+                // Радиация зависит от мощности
+                reactorState.radiation = Math.min(10, reactorState.radiation + (reactorState.power / 500));
+                
+                // Проверка на критические состояния
+                checkCriticalState();
+                
+                // Автоматический взрыв при экстремальных значениях
+                if (reactorState.temperature > 480 || reactorState.pressure > 23 || reactorState.radiation > 8) {
+                    triggerExplosion();
+                }
+                
+                // Обновление положения стержней в 3D
+                updateControlRods();
+            }
+            
+            // Обновить интерфейс
+            updateUI();
+        }
+        
+        function updateControlRods() {
+            const rodHeight = 19 * (reactorState.rodPosition / 100);
+            
+            controlRods.forEach(rod => {
+                rod.position.y = rodHeight;
+            });
+        }
+        
+        function checkCriticalState() {
+            if (reactorState.temperature > 400 || reactorState.pressure > 20 || reactorState.radiation > 5) {
+                if (!reactorState.criticalState) {
+                    reactorState.criticalState = true;
+                    startAlarmSound();
+                    showAlert(alertDanger, "КРИТИЧЕСКОЕ СОСТОЯНИЕ! Немедленно предпримите меры!");
+                }
+            } else if (reactorState.temperature > 350 || reactorState.pressure > 18 || reactorState.radiation > 3) {
+                reactorState.criticalState = false;
+                showAlert(alertWarning, "Внимание! Показатели приближаются к критическим значениям.");
+            } else {
+                reactorState.criticalState = false;
+                stopAlarmSound();
+                showAlert(alertSuccess, "Реактор работает в нормальном режиме.");
+            }
+        }
+        
+        function updateUI() {
+            // Обновить значения на панели управления
+            rodPosition.textContent = `${reactorState.rodPosition}%`;
+            coolantFlowRate.textContent = `${reactorState.coolantFlow}%`;
+            
+            // Обновить показатели
+            powerOutput.textContent = `${Math.round(reactorState.power)} МВт`;
+            coreTemp.textContent = `${Math.round(reactorState.temperature)} °C`;
+            pressure.textContent = `${reactorState.pressure.toFixed(1)} МПа`;
+            radiation.textContent = `${reactorState.radiation.toFixed(2)} мЗв/ч`;
+            
+            // Обновить цветовые индикаторы
+            updateStatusColors();
+        }
+        
+        function updateStatusColors() {
+            // Мощность
+            if (reactorState.power > 1200) {
+                powerOutput.className = "status-value status-danger";
+            } else if (reactorState.power > 1000) {
+                powerOutput.className = "status-value status-warning";
+            } else {
+                powerOutput.className = "status-value status-normal";
+            }
+            
+            // Температура
+            if (reactorState.temperature > 350) {
+                coreTemp.className = "status-value status-danger";
+            } else if (reactorState.temperature > 300) {
+                coreTemp.className = "status-value status-warning";
+            } else {
+                coreTemp.className = "status-value status-normal";
+            }
+            
+            // Давление
+            if (reactorState.pressure > 18) {
+                pressure.className = "status-value status-danger";
+            } else if (reactorState.pressure > 16) {
+                pressure.className = "status-value status-warning";
+            } else {
+                pressure.className = "status-value status-normal";
+            }
+            
+            // Радиация
+            if (reactorState.radiation > 3) {
+                radiation.className = "status-value status-danger";
+            } else if (reactorState.radiation > 1) {
+                radiation.className = "status-value status-warning";
+            } else {
+                radiation.className = "status-value status-normal";
+            }
+        }
+        
+        function showAlert(alertElement, message) {
+            // Скрыть все предупреждения
+            hideAllAlerts();
+            
+            // Показать нужное предупреждение
+            alertElement.textContent = message;
+            alertElement.style.display = "block";
+        }
+        
+        function hideAllAlerts() {
+            alertDanger.style.display = "none";
+            alertWarning.style.display = "none";
+            alertSuccess.style.display = "none";
+            
+            // Убрать моргание со всех уведомлений
+            alertDanger.classList.remove("alert-blink");
+            alertWarning.classList.remove("alert-blink");
+            alertSuccess.classList.remove("alert-blink");
+        }
+        
+        // Управление камерой
+        function setTopView() {
+            camera.position.set(0, 50, 0.1);
+            camera.lookAt(0, 0, 0);
+            controls.reset();
+        }
+        
+        function setFrontView() {
+            camera.position.set(0, 10, 50);
+            camera.lookAt(0, 10, 0);
+            controls.reset();
+        }
+        
+        function setSideView() {
+            camera.position.set(50, 10, 0);
+            camera.lookAt(0, 10, 0);
+            controls.reset();
+        }
+        
+        function setOrbitView() {
+            camera.position.set(0, 30, 50);
+            camera.lookAt(0, 0, 0);
+            controls.reset();
+        }
+        
+        // Обработчики событий
+        startBtn.addEventListener('click', startReactor);
+        stopBtn.addEventListener('click', stopReactor);
+        scramBtn.addEventListener('click', scramReactor);
+        meltdownBtn.addEventListener('click', triggerExplosion);
+        resetBtn.addEventListener('click', resetReactor);
+        muteBtn.addEventListener('click', toggleSound);
+        
+        topViewBtn.addEventListener('click', setTopView);
+        frontViewBtn.addEventListener('click', setFrontView);
+        sideViewBtn.addEventListener('click', setSideView);
+        orbitViewBtn.addEventListener('click', setOrbitView);
+        
+        rodSlider.addEventListener('input', function() {
+            reactorState.rodPosition = parseInt(this.value);
+            updateControlRods();
+            updateUI();
+        });
+        
+        coolantSlider.addEventListener('input', function() {
+            reactorState.coolantFlow = parseInt(this.value);
+            updateUI();
+        });
+        
+        // Инициализация
+        initThreeJS();
+        updateUI();
+        hideAllAlerts();
+    </script>
+</body>
+</html>
